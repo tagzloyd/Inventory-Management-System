@@ -50,12 +50,13 @@ import Inventory2Icon from '@mui/icons-material/Inventory2';
 import BatteryAlertIcon from '@mui/icons-material/BatteryAlert';
 import RemoveShoppingCartIcon from '@mui/icons-material/RemoveShoppingCart';
 
+// === BASE PATH CONFIG ===
+const BASE_PATH = '/IMS.sadaharo.ph';
 
 // Branding configuration - simplified for Toolpad compatibility
 const BRANDING = { segment: 'ims', title: 'INVENTORY MANAGEMENT SYSTEM' };
 
 // Navigation configuration - simplified for Toolpad compatibility
-
 const NAVIGATION = [
   { kind: 'header', title: 'Main items' },
   { segment: 'dashboard', title: 'Dashboard', icon: <DashboardIcon /> },
@@ -447,6 +448,21 @@ function DashboardHome() {
   );
 }
 
+function stripBasePath(pathname) {
+  // Remove base path from pathname for internal routing
+  if (pathname.startsWith(BASE_PATH)) {
+    return pathname.slice(BASE_PATH.length) || '/';
+  }
+  return pathname;
+}
+function withBasePath(path) {
+  // Ensure path starts with /
+  const clean = path.startsWith('/') ? path : '/' + path;
+  // Don't double BASE_PATH
+  if (clean.startsWith(BASE_PATH)) return clean;
+  return BASE_PATH + clean;
+}
+
 function DashboardContent({ pathname, user }) {
   // Normalize pathname by removing leading/trailing slashes and splitting
   const normalizedPath = pathname.replace(/^\/|\/$/g, '');
@@ -502,7 +518,7 @@ function Dashboard() {
     first_name: '',
     last_name: '',
     email: '',
-    role: '', // Add role here
+    role: '',
   });
   const [notification, setNotification] = useState({
     open: false,
@@ -510,27 +526,30 @@ function Dashboard() {
     severity: 'success'
   });
 
-  // Initialize pathname from current URL or default to '/dashboard'
-  const [pathname, setPathname] = React.useState(() => window.location.pathname);
+  // Initialize pathname from current URL, removing BASE_PATH, or default to '/dashboard'
+  const [pathname, setPathname] = React.useState(() => {
+    const stripped = stripBasePath(window.location.pathname);
+    return stripped === '/' ? 'dashboard' : stripped.replace(/^\/+/g, '');
+  });
 
   // Set page title based on pathname
   useEffect(() => {
     let pageTitle = 'Dashboard';
-    if (pathname === '/dashboard') pageTitle = 'Dashboard';
-    else if (pathname === '/') pageTitle = 'INVENTORY MANAGEMENT SYSTEM';
-    else if (pathname === '/supply') pageTitle = 'Supply';
-    else if (pathname === '/suppliers') pageTitle = 'Suppliers';
-    else if (pathname === '/purchase-orders') pageTitle = 'Purchase Orders';
-    else if (pathname === '/requests') pageTitle = 'Requests';
-    else if (pathname === '/deliveries') pageTitle = 'Deliveries';
-    else if (pathname === '/returns') pageTitle = 'Returns';
-    else if (pathname === '/users') pageTitle = 'Users';
-    else if (pathname === '/reports/sales') pageTitle = 'Sales Report';
-    else if (pathname === '/reports/trends') pageTitle = 'Purchase Trends';
-    else if (pathname === '/reports/usage') pageTitle = 'Usage Statistics';
-    else if (pathname === '/reports/returns-analysis') pageTitle = 'Returns Analysis';
-    else if (pathname === '/reports/inventory') pageTitle = 'Inventory Report';
-    else if (pathname === '/reports/stocks') pageTitle = 'Stocks Report';
+    if (pathname === 'dashboard') pageTitle = 'Dashboard';
+    else if (pathname === '') pageTitle = 'INVENTORY MANAGEMENT SYSTEM';
+    else if (pathname === 'supply') pageTitle = 'Supply';
+    else if (pathname === 'suppliers') pageTitle = 'Suppliers';
+    else if (pathname === 'purchase-orders') pageTitle = 'Purchase Orders';
+    else if (pathname === 'requests') pageTitle = 'Requests';
+    else if (pathname === 'deliveries') pageTitle = 'Deliveries';
+    else if (pathname === 'returns') pageTitle = 'Returns';
+    else if (pathname === 'users') pageTitle = 'Users';
+    else if (pathname === 'reports/sales') pageTitle = 'Sales Report';
+    else if (pathname === 'reports/trends') pageTitle = 'Purchase Trends';
+    else if (pathname === 'reports/usage') pageTitle = 'Usage Statistics';
+    else if (pathname === 'reports/returns-analysis') pageTitle = 'Returns Analysis';
+    else if (pathname === 'reports/inventory') pageTitle = 'Inventory Report';
+    else if (pathname === 'reports/stocks') pageTitle = 'Stocks Report';
     else pageTitle = 'Inventory Supply Project';
     document.title = pageTitle + ' | Inventory Supply Project';
   }, [pathname]);
@@ -541,9 +560,9 @@ function Dashboard() {
       pathname,
       searchParams: new URLSearchParams(window.location.search),
       navigate: (path) => {
-        const newPath = path.startsWith('/') ? path : `/${path}`;
-        setPathname(newPath);
-        window.history.pushState({}, '', newPath);
+        const nextPath = path.startsWith('/') ? path : `/${path}`;
+        setPathname(nextPath.replace(/^\/+/g, ''));
+        window.history.pushState({}, '', withBasePath(nextPath));
       },
     };
   }, [pathname]);
@@ -551,7 +570,7 @@ function Dashboard() {
   // Handle browser navigation (back/forward buttons)
   useEffect(() => {
     const handlePopState = () => {
-      setPathname(window.location.pathname);
+      setPathname(stripBasePath(window.location.pathname).replace(/^\/+/g, '') || 'dashboard');
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -566,7 +585,7 @@ function Dashboard() {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           }
         });
-        setUser(response.data); // response.data should include role
+        setUser(response.data);
       } catch (error) {
         console.error('Error fetching user data:', error);
         if (error.response?.status === 401) {
@@ -575,7 +594,7 @@ function Dashboard() {
             message: 'Session expired. Please log in again.',
             severity: 'warning'
           });
-          setTimeout(() => navigate('/login'), 1500);
+          setTimeout(() => navigate(withBasePath('/login')), 1500);
         }
       }
     };
@@ -591,14 +610,13 @@ function Dashboard() {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         }
       });
-
       localStorage.removeItem('auth_token');
       setNotification({
         open: true,
         message: 'Logout successful! Redirecting...',
         severity: 'success'
       });
-      setTimeout(() => navigate('/login'), 1500);
+      setTimeout(() => navigate(withBasePath('/login')), 1500);
     } catch (error) {
       console.error('Logout error:', error);
       setNotification({
@@ -606,10 +624,10 @@ function Dashboard() {
         message: 'Logout failed. Please try again.',
         severity: 'error'
       });
-      
+
       if (error.response?.status === 401) {
         localStorage.removeItem('auth_token');
-        setTimeout(() => navigate('/login'), 1500);
+        setTimeout(() => navigate(withBasePath('/login')), 1500);
       }
     }
   };
@@ -627,7 +645,7 @@ function Dashboard() {
   }), [user]);
 
   const authentication = React.useMemo(() => ({
-    signIn: () => navigate('/login'),
+    signIn: () => navigate(withBasePath('/login')),
     signOut: handleLogout,
   }), [navigate]);
 
